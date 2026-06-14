@@ -30,10 +30,10 @@ The output is an interactive map with an hour slider — open
 pip install -r requirements.txt
 ```
 
-Then open **`CY_Electricity_Model.ipynb`** in Jupyter (or Google Colab) and run the
-cells from top to bottom. Everything lives in this single notebook, organised into
-labelled phases (see below). A free solver is required for the optimisation; this
-project uses [HiGHS](https://highs.dev) via `highspy`.
+Then open **`notebooks/CY_Electricity_Model.ipynb`** in Jupyter (or Google Colab)
+and run the cells from top to bottom. Everything lives in this single notebook,
+organised into labelled phases (see below). A free solver is required for the
+optimisation; this project uses [HiGHS](https://highs.dev) via `highspy`.
 
 ## How the notebook is organised
 
@@ -48,6 +48,10 @@ The notebook runs top to bottom in phases:
 | 3. Indicators | Extracts tidy dataframes: generation mix, dispatch, prices, line loading, emissions, cost |
 | 4. Dashboard | Builds the interactive map with an hour slider; saves `cyprus_dashboard.html` |
 | Cleanup | Tags carriers to clear consistency warnings before sharing |
+
+> **Note:** the dashboard cell saves `cyprus_dashboard.html` into the notebook's
+> working directory (i.e. `notebooks/` if you run it from there). Move it to the
+> repo root if you want it to match the layout below.
 
 ## Model at a glance
 
@@ -94,10 +98,11 @@ cyprus-power-model/
 ├── LICENSE
 ├── requirements.txt
 ├── .gitignore
-├── CY_Electricity_Model.ipynb     # the whole project — run top to bottom
-├── cyprus_dashboard.html          # saved interactive map (open in a browser)
+├── notebooks/
+│   └── CY_Electricity_Model.ipynb   # the whole project — run top to bottom
+├── cyprus_dashboard.html            # saved interactive map (open in a browser)
 └── data/
-    └── README.md                  # notes on where real data would go
+    └── README.md                    # notes on where real data would go
 ```
 
 ## Licence

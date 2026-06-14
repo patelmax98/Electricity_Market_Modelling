@@ -1,0 +1,24 @@
+# Jupyter
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+
+# OS clutter
+.DS_Store
+Thumbs.db
+
+# Large/raw data (keep the repo light; document sources in data/README.md instead)
+data/*.csv
+data/*.xlsx
+data/*.nc
+
+# Solver / model temp files
+*.lp
+*.mps
+*.sol

@@ -1,0 +1,6 @@
+pypsa
+pandas
+numpy
+geopandas
+plotly
+highspy

@@ -4,3 +4,4 @@ numpy
 geopandas
 plotly
 highspy
+streamlit

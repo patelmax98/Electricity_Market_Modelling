@@ -21,8 +21,8 @@ For a representative 24-hour day, the model runs an hourly economic dispatch
 - **Market indicators:** marginal/locational prices, a single system price, total
   system cost, CO2 emissions
 
-The output is an interactive map (`outputs/cyprus_dashboard.html`) with an hour
-slider — open it in any browser, no Python required.
+The output is an interactive map with an hour slider — open
+`cyprus_dashboard.html` in any browser, no Python required.
 
 ## Quick start
 
@@ -30,15 +30,24 @@ slider — open it in any browser, no Python required.
 pip install -r requirements.txt
 ```
 
-Then run the notebooks in order:
+Then open **`CY_Electricity_Model.ipynb`** in Jupyter (or Google Colab) and run the
+cells from top to bottom. Everything lives in this single notebook, organised into
+labelled phases (see below). A free solver is required for the optimisation; this
+project uses [HiGHS](https://highs.dev) via `highspy`.
 
-1. `01_build_network.ipynb` — buses, lines, generators, loads; first solve
-2. `02_timeseries.ipynb` — 24-hour demand + solar profiles; full-day dispatch
-3. `03_indicators.ipynb` — tidy result dataframes (mix, prices, loading, emissions)
-4. `04_dashboard.ipynb` — interactive map; writes `cyprus_dashboard.html`
+## How the notebook is organised
 
-A free solver is required for the optimisation; this project uses
-[HiGHS](https://highs.dev) via `highspy`.
+The notebook runs top to bottom in phases:
+
+| Phase | What it does |
+|-------|--------------|
+| Setup | Installs/imports libraries (PyPSA, pandas, numpy, plotly) |
+| 1. Build network | Defines buses, lines, generators, loads; solves one snapshot |
+| Congestion demo | Deliberately throttles a line to show locational prices split *(the first attempt is intentionally infeasible — that error is an expected teaching moment, not a bug)* |
+| 2. Time-series | Adds a 24-hour demand curve and solar profile; solves the full day |
+| 3. Indicators | Extracts tidy dataframes: generation mix, dispatch, prices, line loading, emissions, cost |
+| 4. Dashboard | Builds the interactive map with an hour slider; saves `cyprus_dashboard.html` |
+| Cleanup | Tags carriers to clear consistency warnings before sharing |
 
 ## Model at a glance
 
@@ -77,6 +86,20 @@ customers would actually pay.
 Other natural extensions: battery storage (to shift midday solar into the evening
 peak), the EuroAsia Interconnector as a cross-border link, and a full-year run.
 
+## Repository contents
+
+```
+cyprus-power-model/
+├── README.md
+├── LICENSE
+├── requirements.txt
+├── .gitignore
+├── CY_Electricity_Model.ipynb     # the whole project — run top to bottom
+├── cyprus_dashboard.html          # saved interactive map (open in a browser)
+└── data/
+    └── README.md                  # notes on where real data would go
+```
+
 ## Licence
 
-Specify a licence (e.g. MIT) before making the repo public.
+Released under the MIT Licence — see `LICENSE`.

@@ -4,14 +4,22 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 
-# --- 1. PAGE SETUP ---
+# --- 1. PAGE SETUP & STYLING ---
+# Setting wide layout and adjusting padding via a small CSS injection to maximize screen real estate
 st.set_page_config(page_title="Cyprus Grid Dashboard", layout="wide")
-st.title("⚡ Cyprus Electricity Market Dashboard")
-st.markdown("Interactive dispatch model using PyPSA and HiGHS.")
+
+st.markdown("""
+    <style>
+    .block-container {
+        padding-top: 1.5rem;
+        padding-bottom: 0rem;
+        padding-left: 3rem;
+        padding-right: 3rem;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 # --- 2. CACHED MODEL EXECUTION ---
-# @st.cache_resource ensures the model only builds and solves ONCE when the app starts.
-# Moving the Streamlit slider will only redraw the map, not rerun the whole optimization.
 @st.cache_resource
 def solve_cyprus_model():
     n = pypsa.Network()
@@ -81,21 +89,44 @@ def solve_cyprus_model():
     for g in n.generators.index[n.generators.carrier == "solar"]:
         n.generators_t.p_max_pu[g] = solar_shape
 
-    # Optimize and detach solver
+    # Optimize
     n.optimize(solver_name="highs", include_objective_constant=False)
     n.model.solver_model = None 
     return n
 
-# Initialize the model
+# Initialize model
 with st.spinner("Solving PyPSA optimization model..."):
     n = solve_cyprus_model()
 
-# --- 3. UI CONTROLS ---
-# Use Streamlit's native slider instead of Plotly's built-in animation timeline
-st.markdown("### View Network Dispatch")
-selected_hour = st.slider("Select Hour of the Day", min_value=0, max_value=23, value=14, step=1, format="%d:00")
+# --- 3. SIDEBAR CONTROLS ---
+with st.sidebar:
+    st.header("🎛️ Model Controls")
+    st.markdown("Adjust parameters to explore network dispatch scenarios.")
+    selected_hour = st.slider("Select Hour of the Day", min_value=0, max_value=23, value=14, step=1, format="%d:00")
+    
+    st.markdown("---")
+    st.markdown("### Model Properties")
+    st.caption("Nodes: 5 Buses")
+    st.caption("Lines: 5 HVAC Circuits")
+    st.caption("Solver: HiGHS (Linear Programming)")
 
-# --- 4. MAP VISUALIZATION ---
+# --- 4. MAIN PANEL NAVIGATION & HEADER ---
+st.title("⚡ Cyprus Electricity Market Dashboard")
+
+# Calculate data for metrics based on selection
+total_demand = n.loads_t.p_set.sum(axis=1).iloc[selected_hour]
+solar_gens = n.generators.index[n.generators.carrier == "solar"]
+total_solar = n.generators_t.p[solar_gens].sum(axis=1).iloc[selected_hour]
+
+# Render prominent metrics right under the title
+m_col1, m_col2, m_col3 = st.columns(3)
+m_col1.metric("Total System Demand", f"{total_demand:,.0f} MW")
+m_col2.metric("Solar Output", f"{total_solar:,.0f} MW")
+m_col3.metric("Daily System Cost", f"€{n.objective:,.0f}")
+
+st.markdown("---")
+
+# --- 5. MAP VISUALIZATION ---
 def create_mapbox(n, hour_idx):
     snap = n.snapshots[hour_idx]
     prices = n.buses_t.marginal_price
@@ -104,20 +135,19 @@ def create_mapbox(n, hour_idx):
     bus_xy = n.buses[["x", "y"]]
 
     def load_colour(pct):
-        if pct < 50: return "#2ecc71" # Green
-        if pct < 80: return "#f1c40f" # Amber
-        return "#e74c3c"              # Red
+        if pct < 50: return "#2ecc71"
+        if pct < 80: return "#f1c40f"
+        return "#e74c3c"
 
     fig = go.Figure()
 
-    # 1. Draw Lines
+    # Draw Lines
     mid_lons, mid_lats, labels = [], [], []
     for ln, row in n.lines.iterrows():
         lon0, lat0 = bus_xy.loc[row.bus0]
         lon1, lat1 = bus_xy.loc[row.bus1]
         pct = line_loading.at[snap, ln]
         
-        # Line trace
         fig.add_trace(go.Scattermapbox(
             lon=[lon0, lon1], lat=[lat0, lat1],
             mode="lines",
@@ -127,21 +157,20 @@ def create_mapbox(n, hour_idx):
             showlegend=False
         ))
         
-        # Save midpoints for text labels
         mid_lons.append((lon0 + lon1) / 2)
         mid_lats.append((lat0 + lat1) / 2)
         labels.append(f"{pct:.0f}%")
 
-    # 2. Draw Line Loading Text
+    # Draw Line Loading Text
     fig.add_trace(go.Scattermapbox(
         lon=mid_lons, lat=mid_lats,
         mode="text", text=labels,
-        textfont=dict(size=12, color="black"),
+        textfont=dict(size=11, color="black"),
         hoverinfo="skip", showlegend=False
     ))
 
-    # 3. Draw Buses
-    sizes = 12 + gen_by_bus_t.reindex(columns=bus_xy.index).loc[snap].fillna(0) / 20
+    # Draw Buses
+    sizes = 14 + gen_by_bus_t.reindex(columns=bus_xy.index).loc[snap].fillna(0) / 20
     colour = prices.loc[snap, bus_xy.index]
     hover = [f"<b>{b}</b><br>Price: €{prices.at[snap,b]:.0f}/MWh<br>Generation: {gen_by_bus_t.reindex(columns=bus_xy.index).at[snap,b]:.0f} MW" for b in bus_xy.index]
 
@@ -151,34 +180,24 @@ def create_mapbox(n, hour_idx):
         marker=dict(
             size=sizes, color=colour, colorscale="YlOrRd",
             cmin=float(prices.values.min()), cmax=float(prices.values.max()),
-            colorbar=dict(title="LMP (€/MWh)")
+            colorbar=dict(title="LMP (€/MWh)", thickness=15, len=0.8)
         ),
         text=bus_xy.index, textposition="top center",
         hoverinfo="text", hovertext=hover, showlegend=False
     ))
 
-    # Configure the real map
+    # Map layout optimized for desktop view ports
     fig.update_layout(
         mapbox=dict(
-            style="carto-positron", # Clean, free, open-source basemap
-            center=dict(lat=34.9, lon=33.3), # Centered on Cyprus
-            zoom=7.5
+            style="carto-positron",
+            center=dict(lat=34.92, lon=33.35),
+            zoom=8.0
         ),
-        margin=dict(l=0, r=0, t=0, b=0),
-        height=600
+        margin=dict(l=5, r=5, t=5, b=5),
+        height=500 # Reduced from 600 to prevent vertical scrolling
     )
     return fig
 
-# Render the map
+# Render the optimized map
 fig = create_mapbox(n, selected_hour)
 st.plotly_chart(fig, use_container_width=True)
-
-# --- 5. DATA METRICS ---
-col1, col2, col3 = st.columns(3)
-total_demand = n.loads_t.p_set.sum(axis=1).iloc[selected_hour]
-solar_gens = n.generators.index[n.generators.carrier == "solar"]
-total_solar = n.generators_t.p[solar_gens].sum(axis=1).iloc[selected_hour]
-
-col1.metric("Total System Demand", f"{total_demand:,.0f} MW")
-col2.metric("Solar Output", f"{total_solar:,.0f} MW")
-col3.metric("Daily System Cost", f"€{n.objective:,.0f}")
